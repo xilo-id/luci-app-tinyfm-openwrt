@@ -5,7 +5,7 @@ PKG_VERSION:=3.0
 PKG_RELEASE:=1
 
 PKG_LICENSE:=MIT
-PKG_MAINTAINER:=Yogxx <https://github.com/Yogxx/tinyfm>
+PKG_MAINTAINER:=xilo
 
 LUCI_TITLE:=LuCI support for TinyFM
 LUCI_DEPENDS:=+php8 +php8-cgi +php8-fastcgi +php8-fpm \
