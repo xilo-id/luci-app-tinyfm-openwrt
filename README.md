@@ -1,10 +1,6 @@
 <h1 align="center">
-  <br>Luci-app-TinyFM<br>
+  <br>Luci-app-TinyFM-OpenWRT<br>
 </h1>
-
-<p align="center">
-  <img src="https://img.shields.io/github/downloads/Yogxx/tinyfm-snapshot/total?style=for-the-badge&logo=github" alt="GitHub Downloads">
-</p>
 
 Required dependencies
 ---
@@ -21,12 +17,18 @@ Screenshot
 ---
 <details><summary>Screenshot</summary>
  <p>
-  <img src="https://raw.githubusercontent.com/Yogxx/tinyfm-snapshot/refs/heads/main/img/tinyfm.png" alt="tinyfm">
+  <img src="https://github.com/xilo-id/luci-app-tinyfm-openwrt/blob/main/img/Screenshot%202026-07-17%20181005.png" alt="tinyfm">
  </p>
  <p>
-  <img src="https://raw.githubusercontent.com/Yogxx/tinyfm-snapshot/refs/heads/main/img/tinyfm1.png" alt="tinyfm1">
+  <img src="https://github.com/xilo-id/luci-app-tinyfm-openwrt/blob/main/img/Screenshot%202026-07-17%20181043.png" alt="tinyfm1">
  </p>
  <p>
-  <img src="https://raw.githubusercontent.com/Yogxx/tinyfm-snapshot/refs/heads/main/img/tinyfm2.png" alt="tinyfm2">
+  <img src="https://github.com/xilo-id/luci-app-tinyfm-openwrt/blob/main/img/Screenshot%202026-07-17%20180948.png" alt="tinyfm2">
+ </p>
+  <p>
+  <img src="https://github.com/xilo-id/luci-app-tinyfm-openwrt/blob/main/img/Screenshot%202026-07-17%20181028.png" alt="tinyfm3">
+ </p>
+  <p>
+  <img src="https://github.com/xilo-id/luci-app-tinyfm-openwrt/blob/main/img/Screenshot%202026-07-17%20181404.png" alt="tinyfm4">
  </p>
 </details>
