@@ -83,8 +83,20 @@ jobs:
     - name: Download OpenWrt ${{ matrix.name }} SDK
       if: steps.cache-sdk.outputs.cache-hit != 'true'
       run: |
-        echo "Downloading ${{ matrix.name }} SDK..."
-        wget -q --show-progress "${{ matrix.sdk_url }}" -O sdk.tar.zst
+        echo "Mengunduh ${{ matrix.name }} SDK..."
+        for attempt in {1..3}; do
+          if wget -q --show-progress "${{ matrix.sdk_url }}" -O sdk.tar.zst; then
+            echo "Unduhan berhasil"
+            break
+          fi
+          if [ $attempt -lt 3 ]; then
+            echo "Unduhan gagal, mencoba ulang dalam 10 detik..."
+            sleep 10
+          else
+            echo "Unduhan gagal setelah 3 percobaan"
+            exit 1
+          fi
+        done
 
     # ================= EXTRACT SDK =================
     - name: Extract SDK
