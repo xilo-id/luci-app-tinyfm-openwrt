@@ -1,0 +1,20 @@
+#!/bin/sh
+
+sed -i 's/^memory_limit.*/memory_limit = 64M/' /etc/php.ini
+
+uci set uhttpd.main.index_page='index.php'
+uci set uhttpd.main.interpreter='.php=/usr/bin/php-cgi'
+uci commit uhttpd
+
+/etc/init.d/php8-fpm start
+/etc/init.d/uhttpd restart
+
+ROOTFS_LINK="/www/tinyfm/rootfs"
+
+mkdir -p /www/tinyfm
+
+[ -e "$ROOTFS_LINK" ] && rm -rf "$ROOTFS_LINK"
+
+ln -s / "$ROOTFS_LINK"
+
+exit 0

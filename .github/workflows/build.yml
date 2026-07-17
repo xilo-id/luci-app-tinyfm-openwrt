@@ -1,0 +1,181 @@
+name: Build luci-app-tinyfm
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: SNAPSHOT
+            sdk_url: "https://downloads.openwrt.org/snapshots/targets/x86/64/openwrt-sdk-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+            feeds_branch: ""
+            artifact_ext: "apk"
+            find_pattern: "luci-app-tinyfm*.apk"
+
+          - name: 24.10.5
+            sdk_url: "https://downloads.openwrt.org/releases/24.10.5/targets/x86/64/openwrt-sdk-24.10.5-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+            feeds_branch: ";openwrt-24.10"
+            artifact_ext: "ipk"
+            find_pattern: "luci-app-tinyfm*.ipk"
+
+    steps:
+
+    # ================= CHECKOUT =================
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    # ================= EXTRACT VERSION =================
+    - name: Extract version
+      id: get_version
+      run: |
+        VERSION=$(grep PKG_VERSION luci-app-tinyfm/Makefile | sed 's/.*:=//')
+        RELEASE=$(grep PKG_RELEASE luci-app-tinyfm/Makefile | sed 's/.*:=//')
+        FULL_VERSION=${VERSION}-r${RELEASE}
+        echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
+        echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
+        echo "Detected version: $FULL_VERSION"
+
+    # ================= FREE DISK SPACE =================
+    - name: Free disk space
+      run: |
+        echo "=== Disk before cleanup ==="
+        df -h
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        sudo docker image prune --all --force 2>/dev/null || true
+        echo "=== Disk after cleanup ==="
+        df -h
+
+    # ================= INSTALL DEPENDENCIES =================
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential clang flex bison g++ gawk \
+          gcc-multilib g++-multilib gettext git libncurses-dev \
+          libssl-dev python3-distutils rsync unzip zlib1g-dev \
+          file wget curl xz-utils zstd
+
+    # ================= CACHE SDK =================
+    - name: Cache SDK tarball
+      uses: actions/cache@v4
+      id: cache-sdk
+      with:
+        path: sdk.tar.zst
+        key: sdk-${{ matrix.name }}-${{ matrix.sdk_url }}
+
+    # ================= DOWNLOAD SDK =================
+    - name: Download OpenWrt ${{ matrix.name }} SDK
+      if: steps.cache-sdk.outputs.cache-hit != 'true'
+      run: |
+        echo "Downloading ${{ matrix.name }} SDK..."
+        wget -q --show-progress "${{ matrix.sdk_url }}" -O sdk.tar.zst
+
+    # ================= EXTRACT SDK =================
+    - name: Extract SDK
+      run: |
+        tar --use-compress-program=unzstd -xf sdk.tar.zst
+        EXTRACTED_DIR=$(tar -tf sdk.tar.zst | head -n1 | cut -f1 -d"/")
+        mv "$EXTRACTED_DIR" sdk
+
+    # ================= CACHE FEEDS =================
+    - name: Cache feeds
+      uses: actions/cache@v4
+      id: cache-feeds
+      with:
+        path: sdk/feeds
+        key: feeds-${{ matrix.name }}-${{ matrix.feeds_branch }}-v1
+        restore-keys: |
+          feeds-${{ matrix.name }}-${{ matrix.feeds_branch }}-
+
+    # ================= PREPARE SDK =================
+    - name: Prepare SDK (${{ matrix.name }})
+      run: |
+        cd sdk
+
+        cat > feeds.conf << EOF
+        src-git packages https://github.com/openwrt/packages.git${{ matrix.feeds_branch }}
+        src-git luci https://github.com/openwrt/luci.git${{ matrix.feeds_branch }}
+        EOF
+
+        git config --global http.postBuffer 524288000
+        git config --global core.compression 0
+        git config --global http.version HTTP/1.1
+        export GIT_OPTIONAL_LOCKS=0
+
+        if [ "${{ steps.cache-feeds.outputs.cache-hit }}" != "true" ]; then
+          echo "Cache miss — cloning feeds..."
+          ./scripts/feeds update packages luci
+        else
+          echo "Cache hit — skipping feeds update"
+        fi
+
+        ./scripts/feeds install -d m -p luci luci-base
+        ./scripts/feeds install -d m -p packages \
+          php8 php8-cgi php8-fpm \
+          php8-mod-session php8-mod-ctype php8-mod-fileinfo \
+          php8-mod-iconv php8-mod-mbstring \
+          coreutils zoneinfo-asia
+
+        make defconfig
+
+        grep -v "^CONFIG_PACKAGE_" .config > .config.tmp && mv .config.tmp .config
+        echo "CONFIG_PACKAGE_luci-app-tinyfm=m" >> .config
+        make defconfig
+
+        echo "=== Active packages in .config ==="
+        grep "^CONFIG_PACKAGE_" .config || echo "(none)"
+
+        echo "=== Disk after feeds ==="
+        df -h
+
+    # ================= COPY PACKAGE =================
+    - name: Copy luci-app-tinyfm into SDK
+      run: |
+        cp -r luci-app-tinyfm sdk/package/
+
+    # ================= BUILD PACKAGE =================
+    - name: Compile luci-app-tinyfm
+      run: |
+        cd sdk
+        make package/luci-app-tinyfm/compile V=s -j$(nproc) \
+          CONFIG_AUTOREMOVE=n \
+          IGNORE_ERRORS=m
+
+    # ================= LOCATE ARTIFACT =================
+    - name: Locate built ${{ matrix.artifact_ext }}
+      run: |
+        FILE=$(find sdk/bin/packages -name "${{ matrix.find_pattern }}" | head -n1)
+        if [ -z "$FILE" ]; then
+          echo "${{ matrix.artifact_ext }} not found!"
+          find sdk/bin/packages -name "*.apk" -o -name "*.ipk" | head -20
+          exit 1
+        fi
+        echo "ARTIFACT_PATH=$FILE" >> $GITHUB_ENV
+        echo "Built ${{ matrix.artifact_ext }}:"
+        ls -lh "$FILE"
+
+    # ================= RELEASE =================
+    - name: Publish to GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: luci-app-tinyfm ${{ github.ref_name }}
+        files: ${{ env.ARTIFACT_PATH }}
+        
