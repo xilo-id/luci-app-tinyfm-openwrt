@@ -4,8 +4,8 @@ PKG_NAME:=luci-app-tinyfm
 PKG_VERSION:=3.0
 PKG_RELEASE:=1
 
-PKG_LICENSE:=MIT
-PKG_MAINTAINER:=Yogxx <https://github.com/Yogxx/tinyfm>
+PKG_LICENSE:=GPL-3.0
+PKG_MAINTAINER:=xilo <https://github.com/xilo-id/luci-app-tinyfm>
 
 LUCI_TITLE:=LuCI support for TinyFM
 LUCI_DEPENDS:=+php8 +php8-cgi +php8-fastcgi +php8-fpm \
@@ -21,11 +21,7 @@ define Package/$(PKG_NAME)/description
 endef
 
 define Package/$(PKG_NAME)/install
-
-	if [ -d ./root ]; then \
-		$(CP) ./root/* $(1)/; \
-	fi
-
+	$(CP) ./root/* $(1)/
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
